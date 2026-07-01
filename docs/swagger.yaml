@@ -1,0 +1,295 @@
+openapi: 3.0.0
+info:
+  title: Subscription Service API
+  description: REST API для управления подписками пользователей
+  version: 1.0.0
+  contact:
+    name: Developer
+    email: dev@example.com
+
+servers:
+  - url: http://localhost:8080
+    description: Local development server
+
+paths:
+  /:
+    post:
+      summary: Создать подписку
+      tags:
+        - Subscriptions
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - service_name
+                - price
+                - user_id
+                - start_date
+              properties:
+                service_name:
+                  type: string
+                  example: "Yandex Plus"
+                  description: Название сервиса
+                price:
+                  type: integer
+                  minimum: 1
+                  example: 400
+                  description: Стоимость в рублях
+                user_id:
+                  type: string
+                  format: uuid
+                  example: "60601fee-2bf1-4721-ae6f-7636e79a0cba"
+                  description: ID пользователя
+                start_date:
+                  type: string
+                  pattern: "^(0[1-9]|1[0-2])-([0-9]{4})$"
+                  example: "07-2025"
+                  description: Дата начала (MM-YYYY)
+      responses:
+        '201':
+          description: Подписка создана
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SubscriptionResponse'
+        '400':
+          description: Неверный запрос
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Подписка уже существует
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Внутренняя ошибка сервера
+
+  /subscriptions:
+    get:
+      summary: Получить список всех подписок
+      tags:
+        - Subscriptions
+      responses:
+        '200':
+          description: Успешно
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Subscription'
+        '500':
+          description: Внутренняя ошибка сервера
+
+  /subscriptions/{id}:
+    get:
+      summary: Получить подписку по ID
+      tags:
+        - Subscriptions
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: ID подписки
+      responses:
+        '200':
+          description: Успешно
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Subscription'
+        '404':
+          description: Подписка не найдена
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Внутренняя ошибка сервера
+
+    put:
+      summary: Обновить подписку
+      tags:
+        - Subscriptions
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: ID подписки
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - service_name
+                - price
+              properties:
+                service_name:
+                  type: string
+                  example: "Yandex Plus Updated"
+                price:
+                  type: integer
+                  minimum: 1
+                  example: 500
+                start_date:
+                  type: string
+                  example: "07-2025"
+                end_date:
+                  type: string
+                  example: "08-2025"
+      responses:
+        '200':
+          description: Подписка обновлена
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Subscription'
+        '400':
+          description: Неверный запрос
+        '404':
+          description: Подписка не найдена
+        '500':
+          description: Внутренняя ошибка сервера
+
+    delete:
+      summary: Удалить подписку
+      tags:
+        - Subscriptions
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: ID подписки
+      responses:
+        '204':
+          description: Подписка удалена
+        '404':
+          description: Подписка не найдена
+        '500':
+          description: Внутренняя ошибка сервера
+
+  /subscriptions/total-cost:
+    post:
+      summary: Подсчитать суммарную стоимость подписок за период
+      tags:
+        - Subscriptions
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - start_date
+                - end_date
+              properties:
+                start_date:
+                  type: string
+                  example: "01-2025"
+                  description: Начало периода (MM-YYYY)
+                end_date:
+                  type: string
+                  example: "12-2025"
+                  description: Конец периода (MM-YYYY)
+                user_id:
+                  type: string
+                  format: uuid
+                  example: "60601fee-2bf1-4721-ae6f-7636e79a0cba"
+                  description: Фильтр по пользователю (опционально)
+                service_name:
+                  type: string
+                  example: "Yandex"
+                  description: Фильтр по названию сервиса (опционально, частичное совпадение)
+      responses:
+        '200':
+          description: Успешно
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total_cost:
+                    type: integer
+                    example: 2097
+                    description: Суммарная стоимость
+                  period:
+                    type: string
+                    example: "01-2025 - 12-2025"
+                  filters:
+                    type: object
+                    properties:
+                      user_id:
+                        type: string
+                      service_name:
+                        type: string
+        '400':
+          description: Неверный запрос
+        '500':
+          description: Внутренняя ошибка сервера
+
+components:
+  schemas:
+    Subscription:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: "a1b2c3d4-..."
+        service_name:
+          type: string
+          example: "Yandex Plus"
+        price:
+          type: integer
+          example: 400
+        user_id:
+          type: string
+          format: uuid
+          example: "60601fee-2bf1-4721-ae6f-7636e79a0cba"
+        start_date:
+          type: string
+          example: "07-2025"
+        end_date:
+          type: string
+          example: "08-2025"
+
+    SubscriptionResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        service_name:
+          type: string
+        price:
+          type: integer
+        user_id:
+          type: string
+        start_date:
+          type: string
+        end_date:
+          type: string
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+          example: "Subscription not found"
